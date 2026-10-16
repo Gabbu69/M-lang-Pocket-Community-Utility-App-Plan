@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { ErrandItem } from '../../types/directory';
 import { Briefcase, CheckCircle2, Circle, ChevronDown, ChevronUp, AlertCircle } from 'lucide-react';
+import { useLocalStorage } from '../../hooks/useLocalStorage';
 
 interface TripConsolidatorProps {
   activeErrands: ErrandItem[];
@@ -8,7 +9,10 @@ interface TripConsolidatorProps {
 
 export const TripConsolidator = ({ activeErrands }: TripConsolidatorProps) => {
   const [isOpen, setIsOpen] = useState(true);
-  const [bagChecks, setBagChecks] = useState<Record<string, boolean>>({});
+  const day = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' });
+  const [bagChecks, setBagChecks] = useLocalStorage<Record<string, boolean>>(`mlang_pocket_bag_${day}`, {},
+    (value): value is Record<string, boolean> => typeof value === 'object' && value !== null && !Array.isArray(value)
+      && Object.values(value).every((item) => typeof item === 'boolean'));
 
   if (activeErrands.length === 0) return null;
 
@@ -22,7 +26,7 @@ export const TripConsolidator = ({ activeErrands }: TripConsolidatorProps) => {
 
   // Standard essential gear for M'lang civic errands
   const standardPackItems = [
-    { id: 'pen', label: 'Black ballpen (government forms require black ink)' },
+    { id: 'pen', label: 'Black ballpen for filling out forms' },
     { id: 'cash', label: 'Cash in small bills (₱20, ₱50, ₱100) & coins for trike & stamps' },
     { id: 'photocopy', label: 'Photocopy of Valid IDs (bring 2–3 extra copies)' },
     { id: 'folder', label: 'Clean document folder or envelope (rain/dust protection)' },
@@ -37,7 +41,7 @@ export const TripConsolidator = ({ activeErrands }: TripConsolidatorProps) => {
 
   const totalBagItems = standardPackItems.length;
   const checkedBagItems = standardPackItems.filter((item) => bagChecks[item.id]).length;
-  const isBagReady = checkedBagItems === totalBagItems;
+  const isBagReady = checkedBagItems === totalBagItems && pendingDocs.length === 0;
 
   return (
     <div className="bg-gradient-to-br from-emerald-900 to-teal-950 text-white rounded-3xl p-4 sm:p-5 shadow-md border border-emerald-700/50 space-y-3">
@@ -48,7 +52,7 @@ export const TripConsolidator = ({ activeErrands }: TripConsolidatorProps) => {
             <Briefcase className="w-5 h-5" />
           </div>
           <div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <h3 className="font-bold text-sm tracking-tight">Pre-Departure Bag Pack &amp; Summary</h3>
               <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.2 rounded-full bg-amber-400 text-amber-950">
                 {activeErrands.length} Trip{activeErrands.length > 1 ? 's' : ''} Planned
@@ -84,7 +88,7 @@ export const TripConsolidator = ({ activeErrands }: TripConsolidatorProps) => {
             <div className="bg-white/10 rounded-xl p-2.5 border border-white/10 col-span-2 sm:col-span-1">
               <span className="text-[10px] text-emerald-200 uppercase font-semibold">Bag Pack Status</span>
               <p className={`text-xs font-bold mt-1 ${isBagReady ? 'text-emerald-300' : 'text-amber-300'}`}>
-                {isBagReady ? '✓ 100% Ready to Leave' : `${checkedBagItems}/${totalBagItems} Essentials Packed`}
+                {isBagReady ? '✓ Packing Checklist Ready' : `${checkedBagItems}/${totalBagItems} Essentials · ${pendingDocs.length} Docs Left`}
               </p>
             </div>
           </div>
@@ -98,10 +102,12 @@ export const TripConsolidator = ({ activeErrands }: TripConsolidatorProps) => {
               {standardPackItems.map((item) => {
                 const isChecked = !!bagChecks[item.id];
                 return (
-                  <div
+                  <button
                     key={item.id}
+                    type="button"
+                    aria-pressed={isChecked}
                     onClick={() => toggleBagCheck(item.id)}
-                    className={`flex items-start gap-2.5 p-2.5 rounded-xl border transition cursor-pointer select-none ${
+                    className={`w-full text-left flex items-start gap-2.5 p-2.5 rounded-xl border transition cursor-pointer select-none ${
                       isChecked
                         ? 'bg-emerald-600/30 border-emerald-400/50 text-emerald-100'
                         : 'bg-white/5 border-white/10 text-emerald-200 hover:bg-white/10'
@@ -117,7 +123,7 @@ export const TripConsolidator = ({ activeErrands }: TripConsolidatorProps) => {
                     <span className={`text-[11px] leading-snug ${isChecked ? 'line-through opacity-80' : ''}`}>
                       {item.label}
                     </span>
-                  </div>
+                  </button>
                 );
               })}
             </div>
@@ -127,7 +133,7 @@ export const TripConsolidator = ({ activeErrands }: TripConsolidatorProps) => {
           <div className="flex items-center gap-2 p-2.5 rounded-xl bg-amber-400/10 border border-amber-400/20 text-amber-200 text-[11px]">
             <AlertCircle className="w-4 h-4 text-amber-300 shrink-0" />
             <p>
-              <strong>M’lang LGU Tip:</strong> Government frontline windows (LCR, Treasury, RHU) implement the <em>"No Noon Break"</em> policy with skeletal shifts, but arriving between 8:00 AM and 9:30 AM avoids queue delays.
+              <strong>Before you leave:</strong> Confirm the destination’s current service hours, requirements, fees, and lunch arrangements. Packing this list does not guarantee that an office is open or your documents are sufficient.
             </p>
           </div>
         </div>

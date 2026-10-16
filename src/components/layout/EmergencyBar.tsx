@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Siren, PhoneCall, ChevronDown, ChevronUp, ShieldAlert, HeartPulse, Flame, Waves } from 'lucide-react';
+import { Siren, PhoneCall, ChevronDown, ChevronUp, ShieldAlert, HeartPulse } from 'lucide-react';
+import { MLANG_DIRECTORY } from '../../data/mlangDirectory';
 
 interface EmergencyContact {
   id: string;
@@ -10,49 +11,50 @@ interface EmergencyContact {
   icon: typeof HeartPulse;
   colorClass: string;
   borderClass: string;
+  sourceUrl: string;
+  sourceLabel: string;
 }
+
+const hospital = MLANG_DIRECTORY.find((listing) => listing.id === 'mdh-hospital');
+const police = MLANG_DIRECTORY.find((listing) => listing.id === 'police-station');
 
 const EMERGENCY_CONTACTS: EmergencyContact[] = [
   {
-    id: 'mdh',
-    name: 'Hospital ER',
-    subtext: "M'lang District Hospital",
-    number: '09631805532',
-    displayNumber: '0963-180-5532',
-    icon: HeartPulse,
+    id: 'national-911',
+    name: 'Emergency 911',
+    subtext: 'Police, fire, medical & rescue',
+    number: '911',
+    displayNumber: '911',
+    icon: Siren,
     colorClass: 'bg-rose-600 hover:bg-rose-700 text-white',
     borderClass: 'border-rose-700',
+    sourceUrl: 'https://pia.gov.ph/press-release/911-becomes-filipinos-lifeline-as-emergency-calls-top-5-2-million-in-early-2026/',
+    sourceLabel: '911: DILG / PIA',
   },
-  {
+  ...(police?.contact.isVerified && police.contact.mobile && police.contact.sourceUrl ? [{
     id: 'pnp',
     name: 'Police Station',
-    subtext: 'PNP M’lang Hotline',
-    number: '09501545463',
-    displayNumber: '0950-154-5463',
+    subtext: 'Published municipal hotline',
+    number: police.contact.mobile.replace(/[^0-9+]/g, ''),
+    displayNumber: police.contact.mobile,
     icon: ShieldAlert,
     colorClass: 'bg-blue-600 hover:bg-blue-700 text-white',
     borderClass: 'border-blue-700',
-  },
-  {
-    id: 'bfp',
-    name: 'Fire Station',
-    subtext: 'BFP Emergency',
-    number: '0645720160',
-    displayNumber: '(064) 572-0160',
-    icon: Flame,
-    colorClass: 'bg-amber-600 hover:bg-amber-700 text-white',
-    borderClass: 'border-amber-700',
-  },
-  {
-    id: 'mdrrmo',
-    name: 'Rescue 24/7',
-    subtext: 'MDRRMO Operations',
-    number: '09298765432',
-    displayNumber: '0929-876-5432',
-    icon: Waves,
+    sourceUrl: police.contact.sourceUrl,
+    sourceLabel: 'Police: LGU contact page',
+  }] : []),
+  ...(hospital?.contact.isVerified && hospital.contact.landline && hospital.contact.sourceUrl ? [{
+    id: 'mdh',
+    name: 'Hospital Contact',
+    subtext: 'General hospital line',
+    number: hospital.contact.landline.replace(/[^0-9+]/g, ''),
+    displayNumber: hospital.contact.landline,
+    icon: HeartPulse,
     colorClass: 'bg-emerald-700 hover:bg-emerald-800 text-white',
     borderClass: 'border-emerald-800',
-  },
+    sourceUrl: hospital.contact.sourceUrl,
+    sourceLabel: 'Hospital: Provincial directory',
+  }] : []),
 ];
 
 export const EmergencyBar = () => {
@@ -65,6 +67,8 @@ export const EmergencyBar = () => {
         <div className="flex items-center justify-between">
           <button
             onClick={() => setIsOpen(!isOpen)}
+            aria-expanded={isOpen}
+            aria-controls="emergency-contacts"
             className="flex items-center gap-2 text-xs font-bold text-rose-400 hover:text-rose-300 transition cursor-pointer"
           >
             <span className="relative flex h-2.5 w-2.5">
@@ -72,14 +76,16 @@ export const EmergencyBar = () => {
               <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-rose-500"></span>
             </span>
             <Siren className="w-4 h-4 text-rose-400" />
-            <span className="tracking-wide uppercase">Emergency 24/7 Speed Dial</span>
+            <span className="tracking-wide uppercase">Emergency Contacts</span>
             <span className="hidden sm:inline text-[11px] text-slate-400 font-normal">
-              — Police, Hospital, BFP, MDRRMO
+              — 911, Police, Hospital
             </span>
           </button>
 
           <button
             onClick={() => setIsOpen(!isOpen)}
+            aria-expanded={isOpen}
+            aria-controls="emergency-contacts"
             className="flex items-center gap-1 text-slate-400 hover:text-white text-xs px-2 py-0.5 rounded transition cursor-pointer"
           >
             <span>{isOpen ? 'Hide Hotlines' : 'Quick Call'}</span>
@@ -89,7 +95,8 @@ export const EmergencyBar = () => {
 
         {/* Expandable Emergency Hotlines Grid */}
         {isOpen && (
-          <div className="pt-3 pb-2 grid grid-cols-2 sm:grid-cols-4 gap-2 animate-in fade-in slide-in-from-top-1 duration-150">
+          <div id="emergency-contacts" className="pt-3 pb-2 animate-in fade-in slide-in-from-top-1 duration-150">
+            <div className="grid grid-cols-1 min-[380px]:grid-cols-2 sm:grid-cols-3 gap-2">
             {EMERGENCY_CONTACTS.map((item) => {
               const Icon = item.icon;
               return (
@@ -108,10 +115,22 @@ export const EmergencyBar = () => {
                       <PhoneCall className="w-3 h-3 opacity-80" />
                     </div>
                     <p className="text-[10px] opacity-90 font-mono truncate">{item.displayNumber}</p>
+                    <p className="text-[10px] opacity-90 truncate">{item.subtext}</p>
                   </div>
                 </a>
               );
             })}
+            </div>
+            <p className="mt-2 text-[11px] leading-relaxed text-slate-300">
+              For fire or rescue emergencies, dial 911. Local BFP and MDRRMO direct numbers are awaiting verification. Published contacts have not been call-tested.
+            </p>
+            <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-slate-400">
+              {EMERGENCY_CONTACTS.map((item) => (
+                <a key={item.id} href={item.sourceUrl} target="_blank" rel="noreferrer" className="underline hover:text-white">
+                  {item.sourceLabel}
+                </a>
+              ))}
+            </div>
           </div>
         )}
       </div>

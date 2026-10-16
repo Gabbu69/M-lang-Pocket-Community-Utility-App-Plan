@@ -6,7 +6,7 @@ import {
   MapPin,
   Phone,
   Clock,
-  CheckCircle2,
+  ClipboardList,
   Bookmark,
   CalendarCheck2,
   ChevronRight,
@@ -46,6 +46,11 @@ export const ListingCard: React.FC<ListingCardProps> = ({
             >
               {openStatus.statusText}
             </span>
+            {listing.verificationStatus === 'provisional' && (
+              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full border border-amber-200 bg-amber-50 text-amber-800">
+                Draft listing
+              </span>
+            )}
           </div>
 
           <div className="flex items-center gap-1 shrink-0">
@@ -104,10 +109,15 @@ export const ListingCard: React.FC<ListingCardProps> = ({
             </span>
           </div>
 
-          {(listing.contact.mobile || listing.contact.landline) && (
+          {listing.contact.isVerified && (listing.contact.mobile || listing.contact.landline) ? (
             <div className="flex items-center gap-1.5 text-slate-600 font-mono text-[11px]">
               <Phone className="w-3.5 h-3.5 text-slate-400 shrink-0" />
               <span>{listing.contact.mobile || listing.contact.landline}</span>
+            </div>
+          ) : (
+            <div className="flex items-center gap-1.5 text-[11px] text-amber-700">
+              <Phone className="w-3.5 h-3.5 shrink-0" />
+              <span>Contact awaiting verification</span>
             </div>
           )}
 
@@ -122,8 +132,10 @@ export const ListingCard: React.FC<ListingCardProps> = ({
           <div className="bg-emerald-50/70 border border-emerald-100 rounded-xl p-2 mb-3">
             <div className="flex items-center justify-between text-[11px] text-emerald-900 font-semibold mb-1">
               <span className="flex items-center gap-1">
-                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                What to Bring ({confirmedRequirementsCount} confirmed)
+                <ClipboardList className="w-3.5 h-3.5 text-emerald-600" />
+                {confirmedRequirementsCount > 0
+                  ? `What to Bring (${confirmedRequirementsCount} confirmed)`
+                  : 'Preparation ideas — confirm first'}
               </span>
             </div>
             <p className="text-[11px] text-emerald-800/90 truncate">
@@ -136,9 +148,9 @@ export const ListingCard: React.FC<ListingCardProps> = ({
 
       {/* Footer: Last Checked Date & Open Action */}
       <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[10px] text-slate-400">
-        <div className="flex items-center gap-1 font-medium text-slate-500" title="Date of last phone or field audit">
+        <div className="flex items-center gap-1 font-medium text-slate-500" title="Date a linked source was reviewed; this does not imply a phone call or field visit">
           <CalendarCheck2 className="w-3 h-3 text-emerald-600" />
-          <span>Checked {formatCheckedDate(listing.lastCheckedDate)}</span>
+          <span>{listing.lastCheckedDate ? `Source reviewed ${formatCheckedDate(listing.lastCheckedDate)}` : 'Awaiting verification'}</span>
         </div>
 
         <div className="flex items-center gap-0.5 text-emerald-700 font-semibold group-hover:translate-x-0.5 transition">

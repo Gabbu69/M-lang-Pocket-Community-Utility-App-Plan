@@ -1,75 +1,36 @@
-const CACHE_NAME = 'mlang-pocket-v1';
-const ASSETS_TO_CACHE = [
-  './',
-  './index.html',
-  './manifest.json',
-  './favicon.svg',
-];
+// Generated alongside each production build, including hashed JS and CSS.
+importScripts('./precache-manifest.js');
+const CACHE_PREFIX = 'mlang-pocket-';
+const CACHE_NAME = CACHE_PREFIX + self.__MLANG_PRECACHE.version;
+const INDEX_URL = new URL('index.html', self.registration.scope).href;
 
 self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(ASSETS_TO_CACHE);
-    })
-  );
-  self.skipWaiting();
+  event.waitUntil(caches.open(CACHE_NAME)
+    .then((cache) => cache.addAll(self.__MLANG_PRECACHE.urls))
+    .then(() => self.skipWaiting()));
 });
 
 self.addEventListener('activate', (event) => {
-  event.waitUntil(
-    caches.keys().then((keys) => {
-      return Promise.all(
-        keys.map((key) => {
-          if (key !== CACHE_NAME) {
-            return caches.delete(key);
-          }
-        })
-      );
-    })
-  );
-  self.clients.claim();
+  event.waitUntil(caches.keys()
+    .then((keys) => Promise.all(keys
+      .filter((key) => key.startsWith(CACHE_PREFIX) && key !== CACHE_NAME)
+      .map((key) => caches.delete(key))))
+    .then(() => self.clients.claim()));
 });
 
 self.addEventListener('fetch', (event) => {
-  // Navigation request or asset request fallback
-  if (event.request.method !== 'GET') return;
-
-  event.respondWith(
-    caches.match(event.request).then((cachedResponse) => {
-      if (cachedResponse) {
-        // Fetch fresh copy in background
-        fetch(event.request)
-          .then((networkResponse) => {
-            if (networkResponse && networkResponse.status === 200) {
-              caches.open(CACHE_NAME).then((cache) => {
-                cache.put(event.request, networkResponse.clone());
-              });
-            }
-          })
-          .catch(() => {});
-        return cachedResponse;
-      }
-
-      return fetch(event.request)
-        .then((networkResponse) => {
-          if (
-            networkResponse &&
-            networkResponse.status === 200 &&
-            (event.request.url.startsWith('http://') || event.request.url.startsWith('https://'))
-          ) {
-            const responseToCache = networkResponse.clone();
-            caches.open(CACHE_NAME).then((cache) => {
-              cache.put(event.request, responseToCache);
-            });
-          }
-          return networkResponse;
-        })
-        .catch(() => {
-          // If offline and requesting html, return cached index
-          if (event.request.headers.get('accept')?.includes('text/html')) {
-            return caches.match('/index.html');
-          }
-        });
-    })
-  );
+  const url = new URL(event.request.url);
+  if (event.request.method !== 'GET' || url.origin !== self.location.origin ||
+      !url.href.startsWith(self.registration.scope)) return;
+  event.respondWith((async () => {
+    const cache = await caches.open(CACHE_NAME);
+    // Keep one build's HTML and assets together; updates activate atomically.
+    const cached = await cache.match(event.request);
+    if (cached) return cached;
+    if (event.request.mode === 'navigate') {
+      const index = await cache.match(INDEX_URL);
+      if (index) return index;
+    }
+    return fetch(event.request);
+  })());
 });

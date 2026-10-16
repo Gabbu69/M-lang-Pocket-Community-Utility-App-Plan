@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import type { DirectoryListing } from '../../types/directory';
 import { getOpenStatus, formatCheckedDate } from '../../utils/timeUtils';
-import { shareListing } from '../../utils/shareUtils';
+import { copyText, shareListing } from '../../utils/shareUtils';
+import { useDialog } from '../../hooks/useDialog';
 import {
   X,
   MapPin,
@@ -42,18 +43,29 @@ export const ListingDetailModal: React.FC<ListingDetailModalProps> = ({
   const [copiedContact, setCopiedContact] = useState<string | null>(null);
   const [addedToErrands, setAddedToErrands] = useState(false);
   const [shareFeedback, setShareFeedback] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
   const [confirmedToday, setConfirmedToday] = useState(() => {
-    return !!localStorage.getItem(`mlang_active_${listing?.id}_${new Date().toISOString().slice(0, 10)}`);
+    try {
+      return !!localStorage.getItem(`mlang_active_${listing?.id}_${new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' })}`);
+    } catch {
+      return false;
+    }
   });
+  const dialogRef = useDialog(!!listing, onClose);
 
   if (!listing) return null;
 
   const openStatus = getOpenStatus(listing);
 
-  const copyToClipboard = (text: string, label: string) => {
-    navigator.clipboard.writeText(text);
-    setCopiedContact(label);
-    setTimeout(() => setCopiedContact(null), 2000);
+  const copyToClipboard = async (text: string, label: string) => {
+    try {
+      await copyText(text);
+      setActionError(null);
+      setCopiedContact(label);
+      setTimeout(() => setCopiedContact(null), 2000);
+    } catch {
+      setActionError('Copy is unavailable. You can select and copy the contact text manually.');
+    }
   };
 
   const handleAddToErrands = () => {
@@ -63,22 +75,37 @@ export const ListingDetailModal: React.FC<ListingDetailModalProps> = ({
   };
 
   const handleShare = async () => {
-    const res = await shareListing(listing);
-    if (res.shared) {
-      setShareFeedback(res.method === 'native' ? 'Shared!' : 'Copied card to clipboard!');
-      setTimeout(() => setShareFeedback(null), 2500);
+    try {
+      const res = await shareListing(listing);
+      if (res.shared) {
+        setActionError(null);
+        setShareFeedback(res.method === 'native' ? 'Shared!' : 'Copied card to clipboard!');
+        setTimeout(() => setShareFeedback(null), 2500);
+      }
+    } catch {
+      setActionError('Sharing is unavailable. You can select and copy the listing details manually.');
     }
   };
 
   const handleConfirmActiveToday = () => {
-    const todayKey = `mlang_active_${listing.id}_${new Date().toISOString().slice(0, 10)}`;
-    localStorage.setItem(todayKey, new Date().toISOString());
-    setConfirmedToday(true);
+    const todayKey = `mlang_active_${listing.id}_${new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' })}`;
+    try {
+      localStorage.setItem(todayKey, new Date().toISOString());
+      setActionError(null);
+      setConfirmedToday(true);
+    } catch {
+      setActionError('This device could not save your visit confirmation.');
+    }
   };
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4" onClick={onClose}>
       <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="listing-detail-title"
+        tabIndex={-1}
         className="relative bg-white w-full max-w-2xl rounded-3xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[92vh] animate-in fade-in zoom-in-95 duration-150"
         onClick={(e) => e.stopPropagation()}
       >
@@ -93,10 +120,10 @@ export const ListingDetailModal: React.FC<ListingDetailModalProps> = ({
                 {openStatus.statusText}
               </span>
               <span className="text-[10px] font-medium text-slate-500">
-                Audited: {formatCheckedDate(listing.lastCheckedDate)}
+                Review: {formatCheckedDate(listing.lastCheckedDate)}
               </span>
             </div>
-            <h2 className="text-xl font-bold text-slate-900 leading-tight">
+            <h2 id="listing-detail-title" className="text-xl font-bold text-slate-900 leading-tight">
               {listing.name}
               {listing.shortName && (
                 <span className="ml-1 text-sm font-semibold text-slate-500">
@@ -143,12 +170,18 @@ export const ListingDetailModal: React.FC<ListingDetailModalProps> = ({
         {/* Share / Copied Alert Banner */}
         {shareFeedback && (
           <div className="bg-emerald-700 text-white text-xs font-semibold px-5 py-2 flex items-center justify-between animate-in fade-in">
-            <span>✓ {shareFeedback} Ready to send to family via SMS or Messenger.</span>
+            <span>{shareFeedback}</span>
           </div>
         )}
+        {actionError && <p role="status" className="shrink-0 bg-amber-50 text-amber-900 px-5 py-2 text-xs">{actionError}</p>}
 
         {/* Scrollable Modal Body */}
-        <div className="overflow-y-auto p-5 space-y-5 text-sm">
+        <div className="min-h-0 overflow-y-auto p-5 space-y-5 text-sm">
+          {listing.verificationStatus !== 'verified' && (
+            <p className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
+              Provisional listing. Confirm the location, hours, and requirements before travelling. A published contact source does not verify every detail.
+            </p>
+          )}
           {/* Service Summary Description */}
           <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-3.5">
             <p className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1">
@@ -232,7 +265,7 @@ export const ListingDetailModal: React.FC<ListingDetailModalProps> = ({
             </div>
 
             <div className="flex flex-wrap gap-2">
-              {listing.contact.mobile && (
+              {listing.contact.isVerified && listing.contact.mobile && (
                 <div className="inline-flex items-center rounded-xl overflow-hidden border border-emerald-600 bg-emerald-600 shadow-xs">
                   <a
                     href={`tel:${listing.contact.mobile}`}
@@ -251,7 +284,7 @@ export const ListingDetailModal: React.FC<ListingDetailModalProps> = ({
                 </div>
               )}
 
-              {listing.contact.landline && (
+              {listing.contact.isVerified && listing.contact.landline && (
                 <div className="inline-flex items-center rounded-xl overflow-hidden border border-slate-800 bg-slate-800 shadow-xs">
                   <a
                     href={`tel:${listing.contact.landline.replace(/[^0-9]/g, '')}`}
@@ -270,7 +303,7 @@ export const ListingDetailModal: React.FC<ListingDetailModalProps> = ({
                 </div>
               )}
 
-              {listing.contact.email && (
+              {listing.contact.isVerified && listing.contact.email && (
                 <div className="inline-flex items-center rounded-xl overflow-hidden border border-slate-200 bg-slate-100 shadow-xs">
                   <a
                     href={`mailto:${listing.contact.email}`}
@@ -289,7 +322,7 @@ export const ListingDetailModal: React.FC<ListingDetailModalProps> = ({
                 </div>
               )}
 
-              {listing.contact.facebookPage && (
+              {listing.contact.isVerified && listing.contact.facebookPage && (
                 <a
                   href={listing.contact.facebookPage}
                   target="_blank"
@@ -302,6 +335,8 @@ export const ListingDetailModal: React.FC<ListingDetailModalProps> = ({
                 </a>
               )}
             </div>
+            {!listing.contact.isVerified && <p className="text-xs text-amber-800">No source-backed direct contact is available yet.</p>}
+            {listing.contact.sourceUrl && <a href={listing.contact.sourceUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-emerald-700 underline">View published contact source</a>}
 
             {listing.contact.contactNote && (
               <p className="text-xs text-slate-500 italic pt-1">
@@ -320,7 +355,7 @@ export const ListingDetailModal: React.FC<ListingDetailModalProps> = ({
                     What to Bring • <span className="text-emerald-800 font-medium">Ano ang Dalhon</span>
                   </h4>
                   <p className="text-xs text-slate-500">
-                    Confirmed with responsible office or Citizens Charter
+                    Suggested items; confirm current requirements with the destination
                   </p>
                 </div>
               </div>
@@ -383,7 +418,7 @@ export const ListingDetailModal: React.FC<ListingDetailModalProps> = ({
               </div>
             ) : (
               <p className="text-xs text-slate-500 italic">
-                No specific documents mandatory for general walk-in visits. Bring a valid ID and payment.
+                Requirements are not yet confirmed. Ask the destination what to bring before travelling.
               </p>
             )}
           </div>
@@ -434,10 +469,10 @@ export const ListingDetailModal: React.FC<ListingDetailModalProps> = ({
             )}
             <div className="pt-2 flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-500 border-t border-slate-200/80 mt-2">
               <div className="flex items-center gap-2 flex-wrap">
-                <span>Audited: {formatCheckedDate(listing.lastCheckedDate)}</span>
+                <span>Review: {formatCheckedDate(listing.lastCheckedDate)}</span>
                 {confirmedToday ? (
                   <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300 flex items-center gap-1">
-                    <Check className="w-3 h-3" /> Confirmed active today by resident
+                    <Check className="w-3 h-3" /> Your visit confirmation saved today
                   </span>
                 ) : (
                   <button
@@ -460,7 +495,7 @@ export const ListingDetailModal: React.FC<ListingDetailModalProps> = ({
         </div>
 
         {/* Modal Sticky Bottom Actions */}
-        <div className="sticky bottom-0 bg-slate-50 px-5 py-3 border-t border-slate-200 flex items-center justify-between gap-2">
+        <div className="shrink-0 sticky bottom-0 bg-slate-50 px-5 py-3 border-t border-slate-200 flex items-center justify-between gap-2">
           <button
             onClick={() => onOpenReport(listing)}
             className="text-xs text-slate-600 hover:text-rose-700 font-medium underline flex items-center gap-1 cursor-pointer"

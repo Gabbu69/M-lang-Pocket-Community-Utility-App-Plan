@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import type { DirectoryListing, ReportPayload } from '../../types/directory';
 import { AlertTriangle, X, Check, Copy, Send } from 'lucide-react';
+import { useDialog } from '../../hooks/useDialog';
+import { copyText } from '../../utils/shareUtils';
 
 interface ReportModalProps {
   listing: DirectoryListing | null;
@@ -19,18 +21,21 @@ export const ReportModal: React.FC<ReportModalProps> = ({
   const [reporterContact, setReporterContact] = useState('');
   const [submitted, setSubmitted] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [copyError, setCopyError] = useState('');
+  const dialogRef = useDialog(!!listing, onClose);
 
   if (!listing) return null;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!description.trim()) return;
     const payload: ReportPayload = {
       listingId: listing.id,
       listingName: listing.name,
       issueType,
-      description,
-      suggestedCorrection,
-      reporterContact,
+      description: description.trim(),
+      suggestedCorrection: suggestedCorrection.trim(),
+      reporterContact: reporterContact.trim(),
     };
 
     onSubmitReport(payload);
@@ -44,16 +49,26 @@ Description: ${description}
 Correction: ${suggestedCorrection}
 Contact: ${reporterContact || 'Anonymous'}`;
 
-  const handleCopyReport = () => {
-    navigator.clipboard.writeText(formattedReportText);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+  const handleCopyReport = async () => {
+    try {
+      await copyText(formattedReportText);
+      setCopyError('');
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      setCopyError('Copy is unavailable. Select the report text below to copy it manually.');
+    }
   };
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4" onClick={onClose}>
       <div
-        className="relative bg-white w-full max-w-lg rounded-3xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-150"
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="report-title"
+        tabIndex={-1}
+        className="relative bg-white w-full max-w-lg rounded-3xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[90dvh] animate-in fade-in zoom-in-95 duration-150"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -61,14 +76,15 @@ Contact: ${reporterContact || 'Anonymous'}`;
           <div className="flex items-center gap-2 text-amber-900">
             <AlertTriangle className="w-5 h-5 text-amber-600" />
             <div>
-              <h3 className="font-bold text-base">Report Outdated or Wrong Info</h3>
+              <h3 id="report-title" className="font-bold text-base">Report Outdated or Wrong Info</h3>
               <p className="text-xs text-amber-800">
-                Help keep M’lang Pocket 100% accurate &amp; trustworthy
+                Save a correction on this device for review and sharing
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
+            aria-label="Close report"
             className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-white transition"
           >
             <X className="w-4 h-4" />
@@ -76,18 +92,19 @@ Contact: ${reporterContact || 'Anonymous'}`;
         </div>
 
         {submitted ? (
-          <div className="p-6 text-center space-y-4">
+          <div className="min-h-0 overflow-y-auto p-6 text-center space-y-4">
             <div className="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto">
               <Check className="w-6 h-6" />
             </div>
             <div>
               <h4 className="text-base font-bold text-slate-900">Thank You for Your Report!</h4>
               <p className="text-xs text-slate-600 mt-1 max-w-sm mx-auto">
-                Your correction for <span className="font-semibold">{listing.name}</span> has been logged to your local feedback queue. We appreciate community vigilance.
+                Your correction for <span className="font-semibold">{listing.name}</span> is saved on this device. It has not been sent to anyone. Copy or export it to share it yourself.
               </p>
             </div>
 
-            <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 text-left text-xs text-slate-700 font-mono whitespace-pre-wrap">
+            {copyError && <p role="status" className="text-xs text-amber-800">{copyError}</p>}
+            <div className="select-text break-words bg-slate-50 p-3 rounded-xl border border-slate-200 text-left text-xs text-slate-700 font-mono whitespace-pre-wrap">
               {formattedReportText}
             </div>
 
@@ -108,7 +125,7 @@ Contact: ${reporterContact || 'Anonymous'}`;
             </div>
           </div>
         ) : (
-          <form onSubmit={handleSubmit} className="p-5 space-y-4 text-xs">
+          <form onSubmit={handleSubmit} className="min-h-0 overflow-y-auto p-5 space-y-4 text-xs">
             {/* Listing Target Notice */}
             <div className="p-2.5 bg-slate-50 border border-slate-200 rounded-xl">
               <span className="text-slate-500">Reporting for:</span>
@@ -117,10 +134,11 @@ Contact: ${reporterContact || 'Anonymous'}`;
 
             {/* Issue Category */}
             <div>
-              <label className="block font-semibold text-slate-700 mb-1">
+              <label htmlFor="report-issue" className="block font-semibold text-slate-700 mb-1">
                 What needs updating?
               </label>
               <select
+                id="report-issue"
                 value={issueType}
                 onChange={(e) => setIssueType(e.target.value as ReportPayload['issueType'])}
                 className="w-full p-2.5 rounded-xl border border-slate-300 bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600"
@@ -135,10 +153,11 @@ Contact: ${reporterContact || 'Anonymous'}`;
 
             {/* Issue Description */}
             <div>
-              <label className="block font-semibold text-slate-700 mb-1">
+              <label htmlFor="report-description" className="block font-semibold text-slate-700 mb-1">
                 Details (What is incorrect?)
               </label>
               <textarea
+                id="report-description"
                 required
                 rows={2}
                 value={description}
@@ -150,10 +169,11 @@ Contact: ${reporterContact || 'Anonymous'}`;
 
             {/* Suggested Correction */}
             <div>
-              <label className="block font-semibold text-slate-700 mb-1">
+              <label htmlFor="report-correction" className="block font-semibold text-slate-700 mb-1">
                 Correct Information (if known)
               </label>
               <textarea
+                id="report-correction"
                 rows={2}
                 value={suggestedCorrection}
                 onChange={(e) => setSuggestedCorrection(e.target.value)}
@@ -164,10 +184,11 @@ Contact: ${reporterContact || 'Anonymous'}`;
 
             {/* Reporter Contact */}
             <div>
-              <label className="block font-semibold text-slate-700 mb-1">
+              <label htmlFor="report-contact" className="block font-semibold text-slate-700 mb-1">
                 Your Contact / Facebook Name (Optional)
               </label>
               <input
+                id="report-contact"
                 type="text"
                 value={reporterContact}
                 onChange={(e) => setReporterContact(e.target.value)}
@@ -190,7 +211,7 @@ Contact: ${reporterContact || 'Anonymous'}`;
                 className="px-4 py-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-semibold flex items-center gap-1.5 shadow-sm transition"
               >
                 <Send className="w-3.5 h-3.5" />
-                <span>Submit Correction</span>
+                <span>Save Correction</span>
               </button>
             </div>
           </form>

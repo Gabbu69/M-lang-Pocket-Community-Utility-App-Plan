@@ -1,30 +1,58 @@
 import type { DirectoryListing } from '../types/directory';
 import { formatCheckedDate } from './timeUtils';
 
+export async function copyText(text: string): Promise<void> {
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+      return;
+    }
+  } catch {
+    // Some Android WebViews deny the asynchronous Clipboard API.
+  }
+
+  const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+  const field = document.createElement('textarea');
+  field.value = text;
+  field.setAttribute('readonly', '');
+  field.style.position = 'fixed';
+  field.style.opacity = '0';
+  document.body.appendChild(field);
+  field.select();
+  try {
+    if (!document.execCommand('copy')) throw new Error('Clipboard access unavailable');
+  } finally {
+    field.remove();
+    previousFocus?.focus();
+  }
+}
+
 export function formatListingShareText(listing: DirectoryListing): string {
   const requirementsList =
     listing.requirements.length > 0
       ? listing.requirements
           .map((r) => `  • ${r.item}${r.note ? ` (${r.note})` : ''}`)
           .join('\n')
-      : '  • Valid ID & cash payment';
+      : '  • Requirements are not yet confirmed. Ask the destination before travelling.';
 
-  const contactList = [
+  const contactList = (listing.contact.isVerified ? [
     listing.contact.mobile ? `Mobile: ${listing.contact.mobile}` : null,
     listing.contact.landline ? `Landline: ${listing.contact.landline}` : null,
     listing.contact.email ? `Email: ${listing.contact.email}` : null,
-  ]
+  ] : [])
     .filter(Boolean)
     .join(' | ');
 
   return `📍 ${listing.name}${listing.shortName ? ` (${listing.shortName})` : ''}
 🏢 ${listing.location.street}, ${listing.location.barangay}, M'lang
-⏰ Hours: ${listing.openingHours.schedule}
+⏰ Draft hours (confirm first): ${listing.openingHours.schedule}
 ${listing.openingHours.lunchBreak ? `⚠️ Note: ${listing.openingHours.lunchBreak}\n` : ''}📞 Contact: ${contactList || 'See in person'}
-🎒 Ano ang Dalhon (What to Bring):
+🎒 Suggested packing list (confirm requirements):
 ${requirementsList}
 
-✅ Verified: ${formatCheckedDate(listing.lastCheckedDate)}
+Source: ${listing.source.name}
+Listing review: ${formatCheckedDate(listing.lastCheckedDate)}
+Confirm current hours, location, and requirements before travelling.
 (Shared via M'lang Pocket Community Guide)`;
 }
 
@@ -42,7 +70,7 @@ export async function shareListing(listing: DirectoryListing): Promise<{ shared:
     } catch (err) {
       // User cancelled share or fallback needed
       if ((err as Error).name !== 'AbortError') {
-        await navigator.clipboard.writeText(text);
+        await copyText(text);
         return { shared: true, method: 'clipboard' };
       }
       return { shared: false, method: 'native' };
@@ -50,6 +78,6 @@ export async function shareListing(listing: DirectoryListing): Promise<{ shared:
   }
 
   // Fallback to clipboard
-  await navigator.clipboard.writeText(text);
+  await copyText(text);
   return { shared: true, method: 'clipboard' };
 }

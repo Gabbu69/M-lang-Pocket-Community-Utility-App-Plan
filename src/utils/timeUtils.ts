@@ -8,6 +8,13 @@ export interface OpenStatus {
 }
 
 export function getOpenStatus(listing: DirectoryListing): OpenStatus {
+  const status = getScheduledOpenStatus(listing);
+  return listing.verificationStatus === 'provisional'
+    ? { ...status, statusText: `Draft: ${status.statusText}`, detailText: `Unverified schedule. ${status.detailText}` }
+    : status;
+}
+
+function getScheduledOpenStatus(listing: DirectoryListing): OpenStatus {
   if (listing.openingHours.is24Hours) {
     return {
       isOpen: true,
@@ -17,9 +24,12 @@ export function getOpenStatus(listing: DirectoryListing): OpenStatus {
     };
   }
 
-  const now = new Date();
-  const currentDay = now.getDay(); // 0 = Sunday, 1 = Monday, etc.
-  const currentHour = now.getHours() + now.getMinutes() / 60;
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Asia/Manila', weekday: 'short', hour: 'numeric', minute: 'numeric', hourCycle: 'h23',
+  }).formatToParts(new Date());
+  const part = (type: Intl.DateTimeFormatPartTypes) => parts.find((item) => item.type === type)?.value ?? '';
+  const currentDay = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].indexOf(part('weekday'));
+  const currentHour = Number(part('hour')) + Number(part('minute')) / 60;
 
   const { daysOpen, openHour, closeHour } = listing.openingHours;
 
@@ -86,7 +96,8 @@ function formatHour(h: number): string {
   return `${displayHour}${minuteString} ${period}`;
 }
 
-export function formatCheckedDate(dateStr: string): string {
+export function formatCheckedDate(dateStr?: string): string {
+  if (!dateStr) return 'Not yet verified';
   try {
     const [year, month, day] = dateStr.split('-');
     const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];

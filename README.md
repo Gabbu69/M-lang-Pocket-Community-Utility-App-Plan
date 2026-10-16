@@ -175,15 +175,22 @@ mlang-pocket/
 
 ---
 
-## 📱 How to Install on Your Smartphone (PWA)
+## 📱 How to Install on Your Smartphone
 
-### Android (Google Chrome)
-1. Open the deployed URL in Google Chrome.
+### 🤖 Native Android APK (Direct Install)
+A pre-compiled native Android APK is included directly in this repository:
+1. Download [**`Mlang-Pocket.apk`**](Mlang-Pocket.apk) directly to your Android device (or copy it from your laptop over USB).
+2. Open your phone's **Files** or **File Manager** app and tap `Mlang-Pocket.apk`.
+3. If prompted, allow *"Install from unknown sources"* or *"Allow from this source"*.
+4. Tap **Install** and enjoy high-performance native Android features with hardware back-button handling!
+
+### 🌐 Android & PC (Progressive Web App - Google Chrome)
+1. Open the deployed web app URL in Google Chrome.
 2. Tap the three-dots menu (**⋮**) in the top right corner.
 3. Select **Add to Home screen** or **Install app**.
 4. Launch **M'lang Pocket** straight from your home screen like a native app—no app store required!
 
-### iOS (Apple Safari)
+### 🍏 iOS (Apple Safari)
 1. Open the deployed URL in Safari.
 2. Tap the **Share** button (box with an arrow pointing up) at the bottom.
 3. Scroll down and tap **Add to Home Screen**.

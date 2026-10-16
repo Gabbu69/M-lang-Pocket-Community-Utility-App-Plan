@@ -1,8 +1,11 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { Capacitor } from '@capacitor/core';
+import { App as CapacitorApp } from '@capacitor/app';
 import { MLANG_DIRECTORY } from './data/mlangDirectory';
 import type { DirectoryListing, ErrandItem, ReportPayload } from './types/directory';
 import { useDirectoryFilter } from './hooks/useDirectoryFilter';
 import { useLocalStorage } from './hooks/useLocalStorage';
+import { isErrandList, isReportList, isStringList } from './utils/storageValidators';
 import { Header } from './components/layout/Header';
 import { EmergencyBar } from './components/layout/EmergencyBar';
 import { DisclaimerBanner } from './components/layout/DisclaimerBanner';
@@ -60,9 +63,9 @@ export function App() {
   } = useDirectoryFilter(MLANG_DIRECTORY);
 
   // Persistent User State
-  const [favorites, setFavorites] = useLocalStorage<string[]>('mlang_pocket_favorites', INITIAL_FAVORITES);
-  const [errands, setErrands] = useLocalStorage<ErrandItem[]>('mlang_pocket_errands', INITIAL_ERRANDS);
-  const [reports, setReports] = useLocalStorage<ReportPayload[]>('mlang_pocket_reports', []);
+  const [favorites, setFavorites] = useLocalStorage<string[]>('mlang_pocket_favorites', INITIAL_FAVORITES, isStringList);
+  const [errands, setErrands] = useLocalStorage<ErrandItem[]>('mlang_pocket_errands', INITIAL_ERRANDS, isErrandList);
+  const [reports, setReports] = useLocalStorage<ReportPayload[]>('mlang_pocket_reports', [], isReportList);
 
   // Modals state
   const [selectedListing, setSelectedListing] = useState<DirectoryListing | null>(null);
@@ -70,6 +73,19 @@ export function App() {
   const [isAddErrandOpen, setIsAddErrandOpen] = useState(false);
   const [presetListingForErrand, setPresetListingForErrand] = useState<DirectoryListing | null>(null);
   const [isAboutOpen, setIsAboutOpen] = useState(false);
+
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+    const listener = CapacitorApp.addListener('backButton', () => {
+      if (reportingListing) setReportingListing(null);
+      else if (isAddErrandOpen) setIsAddErrandOpen(false);
+      else if (selectedListing) setSelectedListing(null);
+      else if (isAboutOpen) setIsAboutOpen(false);
+      else if (activeTab === 'pocket') setActiveTab('directory');
+      else void CapacitorApp.exitApp();
+    });
+    return () => { void listener.then((handle) => handle.remove()); };
+  }, [reportingListing, isAddErrandOpen, selectedListing, isAboutOpen, activeTab]);
 
   // Favorites Handlers
   const handleToggleFavorite = (id: string) => {
@@ -88,12 +104,9 @@ export function App() {
         const updatedChecklist = errand.checklist.map((item) =>
           item.id === itemId ? { ...item, completed: !item.completed } : item
         );
-        const allCompleted =
-          updatedChecklist.length > 0 && updatedChecklist.every((i) => i.completed);
         return {
           ...errand,
           checklist: updatedChecklist,
-          completed: allCompleted,
         };
       })
     );
@@ -103,11 +116,9 @@ export function App() {
     setErrands((prev) =>
       prev.map((errand) => {
         if (errand.id !== errandId) return errand;
-        const nextState = !errand.completed;
         return {
           ...errand,
-          completed: nextState,
-          checklist: errand.checklist.map((i) => ({ ...i, completed: nextState })),
+          completed: !errand.completed,
         };
       })
     );
@@ -130,7 +141,7 @@ export function App() {
       title: `Visit ${listing.name}`,
       listingId: listing.id,
       placeName: listing.name,
-      notes: `Requirements confirmed as of ${listing.lastCheckedDate}. Location: ${listing.location.street}`,
+      notes: `Suggested packing list; confirm current requirements with the destination. Location: ${listing.location.street}`,
       checklist: listing.requirements.map((r, idx) => ({
         id: `item-${Date.now()}-${idx}`,
         text: r.item,
@@ -320,7 +331,7 @@ export function App() {
       {/* Footer */}
       <footer className="mt-auto bg-white border-t border-slate-200/90 py-5 text-center text-xs text-slate-500">
         <div className="max-w-4xl mx-auto px-4 space-y-2">
-          <div className="flex items-center justify-center gap-2 text-slate-700 font-semibold">
+          <div className="flex flex-wrap items-center justify-center gap-2 text-slate-700 font-semibold">
             <span>M’lang Pocket</span>
             <span>•</span>
             <span>Independent Community Guide</span>
@@ -338,40 +349,40 @@ export function App() {
             )}
           </div>
           <p className="text-[11px] text-slate-400 max-w-md mx-auto">
-            Not affiliated with or an official app of LGU M'lang or the Province of Cotabato. 20 checked listings maintained for community reliability.
+            Not affiliated with or an official app of LGU M'lang or the Province of Cotabato. Check each listing’s source and confirm details before travelling.
           </p>
         </div>
       </footer>
 
       {/* Modals */}
-      <ListingDetailModal
+      {selectedListing && <ListingDetailModal
         listing={selectedListing}
         onClose={() => setSelectedListing(null)}
         isFavorite={selectedListing ? favorites.includes(selectedListing.id) : false}
         onToggleFavorite={handleToggleFavorite}
         onAddRequirementsToErrands={handleAddRequirementsToErrands}
         onOpenReport={(l) => setReportingListing(l)}
-      />
+      />}
 
-      <ReportModal
+      {reportingListing && <ReportModal
         listing={reportingListing}
         onClose={() => setReportingListing(null)}
         onSubmitReport={handleSubmitReport}
-      />
+      />}
 
-      <AddErrandModal
+      {isAddErrandOpen && <AddErrandModal
         isOpen={isAddErrandOpen}
         onClose={() => setIsAddErrandOpen(false)}
         listings={MLANG_DIRECTORY}
         onAddErrand={handleAddErrand}
         presetListing={presetListingForErrand}
-      />
+      />}
 
-      <AboutModal
+      {isAboutOpen && <AboutModal
         isOpen={isAboutOpen}
         onClose={() => setIsAboutOpen(false)}
         reports={reports}
-      />
+      />}
     </div>
   );
 }

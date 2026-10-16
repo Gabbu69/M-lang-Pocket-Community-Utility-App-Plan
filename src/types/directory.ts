@@ -30,6 +30,8 @@ export interface DirectoryListing {
     googleMapsUrl?: string;
   };
   contact: {
+    isVerified?: boolean; // Phone details match the linked public source; no live call is implied.
+    sourceUrl?: string;
     landline?: string;
     mobile?: string;
     email?: string;
@@ -49,10 +51,10 @@ export interface DirectoryListing {
   source: {
     name: string;
     url?: string;
-    verificationMethod: 'Provincial Directory' | 'LGU Portal' | 'Field Check' | 'Direct Call';
+    verificationMethod: 'Provincial Directory' | 'LGU Portal' | 'Field Check' | 'Direct Call' | 'Unverified draft' | 'Official public directory';
     citationNote?: string;
   };
-  lastCheckedDate: string; // YYYY-MM-DD
+  lastCheckedDate?: string; // YYYY-MM-DD of source review, only when a source was actually checked.
   verificationStatus: 'verified' | 'provisional';
   tips?: string[];
 }

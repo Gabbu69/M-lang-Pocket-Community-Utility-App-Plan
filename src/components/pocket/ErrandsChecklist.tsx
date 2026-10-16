@@ -36,7 +36,7 @@ export const ErrandsChecklist: React.FC<ErrandsChecklistProps> = ({
   const toggleExpand = (id: string) => {
     setExpandedErrandIds((prev) => ({
       ...prev,
-      [id]: !prev[id],
+      [id]: !(prev[id] ?? true),
     }));
   };
 
@@ -64,7 +64,7 @@ export const ErrandsChecklist: React.FC<ErrandsChecklistProps> = ({
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {/* Filter Pills */}
           <div className="bg-slate-100 p-0.5 rounded-xl flex items-center text-xs font-medium">
             <button
@@ -256,10 +256,12 @@ export const ErrandsChecklist: React.FC<ErrandsChecklistProps> = ({
                     </p>
                     <div className="space-y-1.5">
                       {errand.checklist.map((item) => (
-                        <div
+                        <button
                           key={item.id}
+                          type="button"
+                          aria-pressed={item.completed}
                           onClick={() => onToggleChecklistItem(errand.id, item.id)}
-                          className={`flex items-start gap-2.5 p-2 rounded-xl border text-xs cursor-pointer transition select-none ${
+                          className={`w-full text-left flex items-start gap-2.5 p-2 rounded-xl border text-xs cursor-pointer transition select-none ${
                             item.completed
                               ? 'bg-emerald-50/70 border-emerald-200/80 text-emerald-900'
                               : 'bg-white border-slate-200 text-slate-800 hover:border-slate-300'
@@ -275,7 +277,7 @@ export const ErrandsChecklist: React.FC<ErrandsChecklistProps> = ({
                           <span className={item.completed ? 'line-through text-slate-500' : ''}>
                             {item.text}
                           </span>
-                        </div>
+                        </button>
                       ))}
                     </div>
                   </div>

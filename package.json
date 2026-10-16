@@ -1,15 +1,21 @@
 {
   "name": "mlang-pocket",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "tsc -b && vite build && node scripts/prepare-offline.mjs",
     "lint": "oxlint",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "android:build": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-android.ps1",
+    "android:install": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/install-android.ps1"
   },
   "dependencies": {
+    "@capacitor/android": "^8.5.3",
+    "@capacitor/app": "^8.1.2",
+    "@capacitor/cli": "^8.5.3",
+    "@capacitor/core": "^8.5.3",
     "@tailwindcss/vite": "^4.3.3",
     "lucide-react": "^1.57.0",
     "react": "^19.2.8",

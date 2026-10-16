@@ -22,3 +22,8 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Local build and verification output
+output/
+.playwright-cli/
+*.tsbuildinfo

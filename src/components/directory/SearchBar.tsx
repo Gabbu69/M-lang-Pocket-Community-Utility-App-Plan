@@ -31,6 +31,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
         <Search className="w-4 h-4 text-slate-400 absolute left-3.5 pointer-events-none" />
         <input
           type="text"
+          aria-label="Search places, services, and requirements"
           value={searchQuery}
           onChange={(e) => onSearchChange(e.target.value)}
           placeholder="Search places, services (e.g., Hospital, Cedula, 2x2 photo, tire patch)..."
@@ -53,6 +54,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
           {/* Open Now Chip */}
           <button
             onClick={onToggleOpenNow}
+            aria-pressed={onlyOpenNow}
             className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg border font-medium transition cursor-pointer ${
               onlyOpenNow
                 ? 'bg-emerald-600 text-white border-emerald-700 shadow-sm'
@@ -60,13 +62,14 @@ export const SearchBar: React.FC<SearchBarProps> = ({
             }`}
           >
             <Clock className="w-3.5 h-3.5" />
-            <span>Open Now</span>
+            <span>Open by Draft Hours</span>
           </button>
 
           {/* Barangay Dropdown */}
           <div className="flex items-center gap-1 bg-white border border-slate-200 rounded-lg px-2 py-1 text-slate-700 shadow-sm">
             <MapPin className="w-3.5 h-3.5 text-slate-400" />
             <select
+              aria-label="Filter by barangay"
               value={selectedBarangay}
               onChange={(e) => onBarangayChange(e.target.value)}
               className="bg-transparent text-xs font-medium focus:outline-none cursor-pointer"
@@ -83,7 +86,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
 
         {/* Count Label */}
         <div className="text-[11px] text-slate-500 font-medium">
-          Showing <span className="font-bold text-slate-800">{filteredCount}</span> of {totalCount} verified places
+          Showing <span className="font-bold text-slate-800">{filteredCount}</span> of {totalCount} places
         </div>
       </div>
     </div>

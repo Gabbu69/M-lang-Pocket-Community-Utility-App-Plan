@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import type { DirectoryListing, ErrandItem } from '../../types/directory';
 import { X, Plus, Trash2, CheckSquare } from 'lucide-react';
+import { useDialog } from '../../hooks/useDialog';
 
 interface AddErrandModalProps {
   isOpen: boolean;
@@ -33,6 +34,7 @@ export const AddErrandModal: React.FC<AddErrandModalProps> = ({
         ]
   );
   const [newChecklistText, setNewChecklistText] = useState('');
+  const dialogRef = useDialog(isOpen, onClose);
 
   if (!isOpen) return null;
 
@@ -40,11 +42,12 @@ export const AddErrandModal: React.FC<AddErrandModalProps> = ({
     setSelectedListingId(listingId);
     const found = listings.find((l) => l.id === listingId);
     if (found) {
-      if (!title) {
+      const previousListing = listings.find((listing) => listing.id === selectedListingId);
+      if (!title || title === `Visit ${previousListing?.name}`) {
         setTitle(`Visit ${found.name}`);
       }
       // Import requirements
-      if (found.requirements.length > 0) {
+      {
         const imported = found.requirements.map((r, i) => ({
           id: `item-${Date.now()}-${i}`,
           text: r.item,
@@ -84,7 +87,9 @@ export const AddErrandModal: React.FC<AddErrandModalProps> = ({
       listingId: selectedListingId || undefined,
       placeName: matchedListing?.name,
       notes: notes.trim() || undefined,
-      checklist: checklistItems,
+      checklist: newChecklistText.trim()
+        ? [...checklistItems, { id: `item-${crypto.randomUUID()}`, text: newChecklistText.trim(), completed: false }]
+        : checklistItems,
       completed: false,
       createdAt: new Date().toISOString(),
     };
@@ -94,8 +99,13 @@ export const AddErrandModal: React.FC<AddErrandModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4" onClick={onClose}>
       <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="add-errand-title"
+        tabIndex={-1}
         className="relative bg-white w-full max-w-lg rounded-3xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[90vh] animate-in fade-in zoom-in-95 duration-150"
         onClick={(e) => e.stopPropagation()}
       >
@@ -105,25 +115,27 @@ export const AddErrandModal: React.FC<AddErrandModalProps> = ({
               <CheckSquare className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="font-bold text-base text-slate-900">New Errand &amp; Checklist</h3>
+              <h3 id="add-errand-title" className="font-bold text-base text-slate-900">New Errand &amp; Checklist</h3>
               <p className="text-xs text-slate-500">Plan what to bring before you head out</p>
             </div>
           </div>
           <button
             onClick={onClose}
+            aria-label="Close new errand"
             className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-5 overflow-y-auto space-y-4 text-xs">
+        <form onSubmit={handleSubmit} className="min-h-0 p-5 overflow-y-auto space-y-4 text-xs">
           {/* Linked Place (Optional) */}
           <div>
-            <label className="block font-semibold text-slate-700 mb-1">
+            <label htmlFor="errand-destination" className="block font-semibold text-slate-700 mb-1">
               Destination Place (Optional)
             </label>
             <select
+              id="errand-destination"
               value={selectedListingId}
               onChange={(e) => handleListingSelect(e.target.value)}
               className="w-full p-2.5 rounded-xl border border-slate-300 bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600"
@@ -139,10 +151,11 @@ export const AddErrandModal: React.FC<AddErrandModalProps> = ({
 
           {/* Errand Title */}
           <div>
-            <label className="block font-semibold text-slate-700 mb-1">
+            <label htmlFor="errand-title" className="block font-semibold text-slate-700 mb-1">
               Errand Title <span className="text-rose-500">*</span>
             </label>
             <input
+              id="errand-title"
               type="text"
               required
               value={title}
@@ -170,6 +183,7 @@ export const AddErrandModal: React.FC<AddErrandModalProps> = ({
                   <span className="text-xs text-slate-800 truncate">{item.text}</span>
                   <button
                     type="button"
+                    aria-label={`Remove ${item.text}`}
                     onClick={() => handleRemoveChecklistItem(item.id)}
                     className="p-1 text-slate-400 hover:text-rose-600 transition"
                   >
@@ -183,6 +197,7 @@ export const AddErrandModal: React.FC<AddErrandModalProps> = ({
             <div className="flex items-center gap-1.5 pt-1">
               <input
                 type="text"
+                aria-label="New checklist item"
                 value={newChecklistText}
                 onChange={(e) => setNewChecklistText(e.target.value)}
                 onKeyDown={(e) => {
@@ -192,10 +207,11 @@ export const AddErrandModal: React.FC<AddErrandModalProps> = ({
                   }
                 }}
                 placeholder="Add document or item e.g. 2x2 picture, black pen..."
-                className="flex-1 p-2 rounded-xl border border-slate-300 bg-white text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600"
+                className="min-w-0 flex-1 p-2 rounded-xl border border-slate-300 bg-white text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600"
               />
               <button
                 type="button"
+                aria-label="Add checklist item"
                 onClick={handleAddChecklistItem}
                 className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 font-semibold rounded-xl border border-slate-300 transition"
               >
@@ -206,10 +222,11 @@ export const AddErrandModal: React.FC<AddErrandModalProps> = ({
 
           {/* Notes */}
           <div>
-            <label className="block font-semibold text-slate-700 mb-1">
+            <label htmlFor="errand-notes" className="block font-semibold text-slate-700 mb-1">
               Notes or Budget (Optional)
             </label>
             <textarea
+              id="errand-notes"
               rows={2}
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
