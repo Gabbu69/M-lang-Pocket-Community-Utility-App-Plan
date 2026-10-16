@@ -1,0 +1,17 @@
+{
+  "name": "M'lang Pocket",
+  "short_name": "M'lang Pocket",
+  "description": "Where to go, what to bring, and who to contact in M'lang, Cotabato. Independent community guide & errands checklist.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#065f46",
+  "theme_color": "#065f46",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
